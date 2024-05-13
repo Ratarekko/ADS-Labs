@@ -6,7 +6,7 @@ from collections import (deque)
 
 SEED = 3223
 NUM_VERTICES = 12
-K = 0.68
+K = 0.815
 drawn_edges = set()
 
 def generate_matrix():
@@ -92,14 +92,11 @@ def draw_normal_edge(x1, y1, x2, y2):
     turtle.forward(distance - 40)
     turtle.penup()
 
-def draw_edge(x1, y1, x2, y2, i, j, directed):
+def draw_edge(x1, y1, x2, y2, i, j):
     if (i, j) in drawn_edges or (j, i) in drawn_edges:
-        if not directed:
-            return
-        else:
-            draw_bent_edge(x1, y1, x2, y2)
-            draw_arrows()
-            return
+        draw_bent_edge(x1, y1, x2, y2)
+        draw_arrows()
+        return
 
     drawn_edges.add((i, j))
 
@@ -112,9 +109,7 @@ def draw_edge(x1, y1, x2, y2, i, j, directed):
             diff_edge(x1, y1, x2, y2, i, j)
     else:
         draw_normal_edge(x1, y1, x2, y2)
-
-    if directed:
-        draw_arrows()
+    draw_arrows()
 
 def calculate_positions(num_vertices, distance):
     positions = []
@@ -128,7 +123,7 @@ def calculate_positions(num_vertices, distance):
                 y += -distance if i == 1 else distance
     return positions
 
-def draw_graph(matrix, directed):
+def draw_graph(matrix):
     positions = calculate_positions(NUM_VERTICES, 150)
 
     for i, (x, y) in enumerate(positions):
@@ -137,111 +132,143 @@ def draw_graph(matrix, directed):
     for i in range(NUM_VERTICES):
         for j in range(NUM_VERTICES):
             if matrix[i][j] == 1:
-                draw_edge(positions[i][0], positions[i][1], positions[j][0], positions[j][1], i, j, directed)
+                draw_edge(positions[i][0], positions[i][1], positions[j][0], positions[j][1], i, j)
 
-def bfs(graph, start_vertex):
-    visited = set()
-    queue = deque([start_vertex])
-    visited_order_bfs = []
+def bfs(start_node, adjacency_list):
+    print('\n*****BFS*****\n')
 
-    while queue:
+    visited = [False] * NUM_VERTICES
+    bfs_matrix = [[0] * NUM_VERTICES for _ in range(NUM_VERTICES)]
+    bfs_order = []
+    positions = calculate_positions(NUM_VERTICES, 150)
+
+    def bfs_recursive(queue):
+        if not queue:
+            return
+
         current_vertex = queue.popleft()
-        if current_vertex not in visited:
-            visited_order_bfs.append(current_vertex+1)
-            visited.add(current_vertex)
-            for neighbor, connected in enumerate(graph[current_vertex]):
-                if connected and neighbor not in visited:
-                    queue.append(neighbor)
-    visited_order_bfs.append(11)
-    print('\n BFS:')
-    print(visited_order_bfs)
-    return visited_order_bfs
+        bfs_order.append(current_vertex + 1)
 
-def dfs(graph, start_vertex):
-    visited = set()
-    stack = [start_vertex]
-    visited_order_dfs = []
-
-    while stack:
-        current_vertex = stack.pop()
-        if current_vertex not in visited:
-            visited_order_dfs.append(current_vertex+1)
-            visited.add(current_vertex)
-
-            for neighbor, connected in reversed(list(enumerate(graph[current_vertex]))):
-                if connected and neighbor not in visited:
-                    stack.append(neighbor)
-    visited_order_dfs.append(11)
-    print('\n DFS:')
-    print(visited_order_dfs)
-    return visited_order_dfs
-
-def traversal_matrix(graph, visited_order):
-    num_vertices = len(graph)
-    traversal_adjacency_matrix = [[0] * num_vertices for _ in range(num_vertices)]
-
-    for i in range(len(visited_order) - 1):
-        current_vertex = visited_order[i]
-        next_vertex = visited_order[i + 1]
-        traversal_adjacency_matrix[current_vertex - 1][next_vertex - 1] = 1
-
-    return traversal_adjacency_matrix
-
-def visualize_fs(visited_order, positions, directed, button):
-    for i in range(len(visited_order) - 1):
-        current_vertex = visited_order[i] - 1
-        next_vertex = visited_order[i + 1] - 1
-
+        print("Active vertex:", current_vertex + 1)
         x1, y1 = positions[current_vertex]
-        x2, y2 = positions[next_vertex]
-
-        keyboard.wait(button)
-        draw_vertex(x1, y1, visited_order[i], 'Yellow')
-        turtle.width(4)
-        turtle.color('Blue')
-
-        draw_edge(x1, y1, x2, y2, current_vertex, next_vertex, directed)
         turtle.home()
-        keyboard.wait(button)
-        draw_vertex(x2, y2, visited_order[i + 1], 'Green')
+        draw_vertex(x1, y1, current_vertex + 1, 'Blue')
+
+        for neighbor in adjacency_list[current_vertex]:
+            if not visited[neighbor]:
+                x2, y2 = positions[neighbor]
+                keyboard.wait('space')
+
+                turtle.width(3)
+                turtle.color('Red')
+                draw_edge(x1, y1, x2, y2, current_vertex, neighbor)
+                turtle.home()
+                draw_vertex(x2, y2, neighbor + 1, 'Green')
+
+                bfs_matrix[current_vertex][neighbor] = 1
+                visited[neighbor] = True
+                queue.append(neighbor)
+
+        turtle.home()
+        draw_vertex(x1, y1, current_vertex + 1, 'Magenta')
+        bfs_recursive(queue)
+
+    queue = deque([start_node])
+    visited[start_node] = True
+    bfs_recursive(queue)
+
+    for i in range(NUM_VERTICES):
+        if not visited[i]:
+            queue = deque([i])
+            visited[i] = True
+            bfs_recursive(queue)
+
+    print("\nBFS adjacency matrix:")
+    for row in bfs_matrix:
+        print(row)
+
+    print("\nBFS list:", bfs_order)
+
+
+def build_adjacency_list(matrix):
+    adjacency_list = [[] for _ in range(NUM_VERTICES)]
+
+    for i in range(NUM_VERTICES):
+        for j in range(NUM_VERTICES):
+            if matrix[i][j] == 1:
+                adjacency_list[i].append(j)
+    return adjacency_list
+
+def dfs(start_node, adjacency_list):
+    print('\n*****DFS*****\n')
+
+    visited = [False] * NUM_VERTICES
+    dfs_matrix = [[0] * NUM_VERTICES for _ in range(NUM_VERTICES)]
+    dfs_order = []
+    positions = calculate_positions(NUM_VERTICES, 150)
+
+    def dfs_recursive(current_vertex):
+        visited[current_vertex] = True
+        dfs_order.append(current_vertex + 1)
+        print("Active vertex:", current_vertex + 1)
+        x1, y1 = positions[current_vertex]
+        turtle.home()
+        draw_vertex(x1, y1, current_vertex + 1, 'Blue')
+
+        for neighbor in adjacency_list[current_vertex]:
+            if not visited[neighbor]:
+                x2, y2 = positions[neighbor]
+                keyboard.wait('space')
+                draw_vertex(x1, y1, current_vertex + 1, 'Green')
+
+                turtle.home()
+                turtle.width(3)
+                turtle.color('Red')
+                draw_edge(x1, y1, x2, y2, current_vertex, neighbor)
+                dfs_matrix[current_vertex][neighbor] = 1
+
+                dfs_recursive(neighbor)
+
+        draw_vertex(x1, y1, current_vertex + 1, 'Magenta')
+
+    dfs_recursive(start_node)
+
+    for i in range(NUM_VERTICES):
+        if not visited[i]:
+            dfs_recursive(i)
+
+    print("\nDFS adjacency matrix:")
+    for row in dfs_matrix:
+        print(row)
+
+    print("\nDFS list:", dfs_order)
 
 def main():
     wn = turtle.Screen()
     wn.title("Graphs")
     wn.bgcolor("white")
-    wn.setup(width=1200, height=650)
-    turtle.speed("fastest")
+    wn.setup(width=650, height=650)
+    turtle.speed(0)
 
     directed_matrix = make_directed_matrix()
-    draw_graph(directed_matrix, True)
+    draw_graph(directed_matrix)
     turtle.home()
-
     drawn_edges.clear()
-    positions = calculate_positions(NUM_VERTICES, 150)
 
-    turtle.penup()
-    turtle.goto(-585, -40)
-    turtle.pendown()
-    turtle.write('Press "b" for BFS\nPress "d" for DFS', font=("Arial Black", 23, "normal"))
-    turtle.penup()
+    adjacency_list = build_adjacency_list(directed_matrix)
 
-    visited_order_bfs = bfs(directed_matrix, 0)
-    traversal_matrix_bfs = traversal_matrix(directed_matrix, visited_order_bfs)
-    print("\nAdjacency Matrix for BFS: ")
-    for row in traversal_matrix_bfs:
-        print(row)
+    bfs(0, adjacency_list)
 
-    visited_order_dfs = dfs(directed_matrix, 0)
-    traversal_matrix_dfs = traversal_matrix(directed_matrix, visited_order_dfs)
-    print("\nAdjacency Matrix for DFS: ")
-    for row in traversal_matrix_dfs:
-        print(row)
+    keyboard.wait("x")
+    drawn_edges.clear()
+    turtle.clear()
+    turtle.width(1)
+    draw_graph(directed_matrix)
+    drawn_edges.clear()
 
-    while True:
-        if keyboard.is_pressed('b'):
-            visualize_fs(visited_order_bfs, positions, True, "b")
-        elif keyboard.is_pressed('d'):
-            visualize_fs(visited_order_dfs, positions, True, "d")
+    dfs(0, adjacency_list)
+
+    turtle.done()
 
 
 main()
