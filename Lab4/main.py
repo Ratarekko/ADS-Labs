@@ -150,6 +150,8 @@ def calculate_positions(num_vertices, distance):
 
 def draw_graph(matrix, directed, num_vertices):
     positions = calculate_positions(num_vertices, 150)
+    if len(matrix) == 1:
+        draw_vertex(0, 0, 1)
 
     for i, (x, y) in enumerate(positions):
         draw_vertex(x, y, i + 1)
@@ -174,7 +176,7 @@ def calculate_out_in_degrees(matrix):
 
 def check_regular_graph(degrees):
     if all(deg == degrees[0] for deg in degrees):
-        print("\nГраф регулярний зі степенню")
+        print("\nГраф регулярний зі степенню", degrees[0])
     else:
         print("\nГраф не регулярний")
 
@@ -186,8 +188,8 @@ def find_leaf_and_isolated_vertices(degrees):
 
     return leaf_vertices, isolated_vertices
 
-def calculate_graph_parameters(k):
-    directed_matrix = make_directed_matrix(k, False)
+def first_part_of_calc():
+    directed_matrix = make_directed_matrix(k1, False)
     undirected_matrix = make_undirected_matrix(directed_matrix, True)
     directed_degrees = calculate_vertex_degrees(directed_matrix, True)
     undirected_degrees = calculate_vertex_degrees(undirected_matrix)
@@ -195,9 +197,7 @@ def calculate_graph_parameters(k):
     print("Степені вершин ненапрямленого графа:", undirected_degrees)
 
     calculate_out_in_degrees(directed_matrix)
-
     check_regular_graph(directed_degrees)
-
     find_leaf_and_isolated_vertices(undirected_degrees)
 
 def second_part_of_calc():
@@ -230,20 +230,12 @@ def multiply_matrix(matrix1, matrix2):
     return result
 
 def calculate_paths(matrix):
-
-    def route_points(matrix, row_num, col_num):
+    def route_points(row_num, col_num):
         points_list = []
         for i in range(len(matrix)):
             if matrix[i][col_num] and matrix[row_num][i]:
                 points_list.append(i + 1)
         return points_list
-
-    def find_third(matrix, end):
-        third_list = []
-        for k in range(len(matrix)):
-            if matrix[k][end]:
-                third_list.append(k + 1)
-        return third_list
 
     squared_matrix = multiply_matrix(matrix, matrix)
     cubic_matrix = multiply_matrix(squared_matrix, matrix)
@@ -254,7 +246,7 @@ def calculate_paths(matrix):
     for row in range(len(squared_matrix)):
         for col in range(len(squared_matrix)):
             if squared_matrix[row][col]:
-                points_list = route_points(matrix, row, col)
+                points_list = route_points(row, col)
                 for point in points_list:
                     paths[2].append((row + 1, point, col + 1))
 
@@ -262,11 +254,11 @@ def calculate_paths(matrix):
     for row in range(len(cubic_matrix)):
         for col in range(len(cubic_matrix)):
             if cubic_matrix[row][col]:
-                third_list = find_third(matrix, col)
-                for third in third_list:
-                    points_list = route_points(matrix, row, third - 1)
-                    for point in points_list:
-                        paths[3].append((row + 1, point, third, col + 1))
+                for third in range(len(matrix)):
+                    if matrix[third][col]:
+                        points_list = route_points(row, third)
+                        for point in points_list:
+                            paths[3].append((row + 1, point, third + 1, col + 1))
 
     print("\nRoutes of length 2:")
     print(paths[2])
@@ -290,24 +282,22 @@ def transitive_closure(matrix):
 
 def strong_components(matrix):
     num_vertices = len(matrix)
-
     reachability_matrix = transitive_closure(matrix)
-
-    transpose_matrix = [[matrix[j][i] for j in range(num_vertices)] for i in range(num_vertices)]
-
-    transpose_reachability_matrix = transitive_closure(transpose_matrix)
 
     components = []
     visited = [False] * num_vertices
+
     for i in range(num_vertices):
         if not visited[i]:
             component = []
             for j in range(num_vertices):
-                if reachability_matrix[i][j] and transpose_reachability_matrix[j][i]:
+                if reachability_matrix[i][j] and reachability_matrix[j][i]:
                     visited[j] = True
                     component.append(j)
             components.append(component)
+
     return components
+
 
 def strong_matrix(matrix, components):
     num_components = len(components)
@@ -344,9 +334,10 @@ def main():
     undirected_matrix = make_undirected_matrix(directed_matrix, False)
     modify_matrix = make_directed_matrix(k2, True)
 
-    calculate_graph_parameters(k1)
+    first_part_of_calc()
     second_part_of_calc()
 
+    #draw_graph(modify_matrix, True, len(directed_matrix))
     draw_graph(directed_matrix, True, len(directed_matrix))
 
     default_turtle()
@@ -358,7 +349,7 @@ def main():
     default_turtle()
     components = strong_components(modify_matrix)
     strong_components_matrix = strong_matrix(modify_matrix, components)
-    draw_vertex(0, 0, len(strong_components_matrix))
+    draw_graph(strong_components_matrix, True, len(strong_components_matrix))
 
     turtle.hideturtle()
     turtle.done()
